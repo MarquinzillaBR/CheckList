@@ -68,8 +68,8 @@ function iniciarNovaSeparacao() {
         const nomeLoja = guiaText.match(/(.*?)(?=CNPJ:)/)?.[1]?.trim() || "Loja";
         const cnpj = guiaText.match(/CNPJ:\s*([\d./-]+)/)?.[1] || "";
         const itens = [];
-        // Regex para formato PDF extraído (texto continuo com múltiplos espaços)
-        const itemRegex = /([A-Za-z\s\(\)\d\/unbox]+?)\s+([A-Z0-9\-\/]+)\s+(\d+)\s*(?=[A-Za-z\s\(\)\d\/unbox]+?[A-Z0-9\-\/]+\s+\d+|$)/g;
+        // Regex universal: funciona com TABS, espaços ou ambos
+        const itemRegex = /([A-Za-z\s\(\)\d\/unbox]+?)\s+([A-Z0-9\-\/]+)\s+(\d+)\s*(?=[A-Za-z\s\(\)\d\/unbox]+?[A-Z0-9\-\/]+\s+\d+|$)/gm;
         let match;
         
         console.log('Processando guia:', guiaText.substring(0, 200) + '...');
@@ -138,7 +138,7 @@ function validateInput(text) {
     
     guias.forEach((guia, idx) => {
         // Usar o mesmo regex e filtros da função de parsing
-        const itemRegex = /([A-Za-z\s\(\)\d\/unbox]+?)\s+([A-Z0-9\-\/]+)\s+(\d+)\s*(?=[A-Za-z\s\(\)\d\/unbox]+?[A-Z0-9\-\/]+\s+\d+|$)/g;
+        const itemRegex = /([A-Za-z\s\(\)\d\/unbox]+?)\s+([A-Z0-9\-\/]+)\s+(\d+)\s*(?=[A-Za-z\s\(\)\d\/unbox]+?[A-Z0-9\-\/]+\s+\d+|$)/gm;
         let match;
         let validItems = 0;
         
