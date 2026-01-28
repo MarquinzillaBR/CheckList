@@ -192,29 +192,29 @@
                             <p id="statCompleted" class="font-bold text-sm text-green-600">0</p>
                         </div>
                     </div>
+
+                    <!-- Opções de Limpeza -->
+                    <div class="pt-3 border-t border-slate-200">
+                        <div class="flex items-center justify-between cursor-pointer mb-3" onclick="toggleResetCard()">
+                            <div class="flex items-center gap-3">
+                                <span class="text-red-500">🗑</span>
+                                <span class="font-bold text-sm text-gray-700">Opções de Limpeza</span>
+                            </div>
+                            <span id="resetCardIcon" class="text-gray-400 transition-transform">▼</span>
+                        </div>
+                        <div id="resetCardContent" class="hidden">
+                            <p class="text-sm text-gray-600 mb-3">⚠️ Esta ação apagará todo o progresso atual e não poderá ser desfeita.</p>
+                            <button onclick="showConfirmModal()" class="w-full py-3 text-red-500 font-bold text-sm border-2 border-dashed border-red-200 rounded-xl hover:bg-red-50 transition-all">
+                                LIMPAR TUDO E NOVA GUIA
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
     </header>
 
     <main class="max-w-3xl mx-auto p-4">
-        
-        <!-- Card de Limpeza Colapsável -->
-        <div id="resetCard" class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-200">
-            <div class="flex items-center justify-between cursor-pointer" onclick="toggleResetCard()">
-                <div class="flex items-center gap-3">
-                    <span class="text-red-500">🗑</span>
-                    <span class="font-bold text-sm text-gray-700">Opções de Limpeza</span>
-                </div>
-                <span id="resetCardIcon" class="text-gray-400 transition-transform">▼</span>
-            </div>
-            <div id="resetCardContent" class="hidden mt-4 pt-4 border-t border-slate-200">
-                <p class="text-sm text-gray-600 mb-3">⚠️ Esta ação apagará todo o progresso atual e não poderá ser desfeita.</p>
-                <button onclick="showConfirmModal()" class="w-full py-3 text-red-500 font-bold text-sm border-2 border-dashed border-red-200 rounded-xl hover:bg-red-50 transition-all">
-                    LIMPAR TUDO E NOVA GUIA
-                </button>
-            </div>
-        </div>
         
         <div id="inputSection" class="bg-white rounded-2xl p-6 shadow-sm mb-6 border border-slate-200">
             <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Importar Guias</h2>
@@ -281,15 +281,32 @@
                 const nomeLoja = guiaText.match(/(.*?)(?=CNPJ:)/)?.[1]?.trim() || "Loja";
                 const cnpj = guiaText.match(/CNPJ:\s*([\d./-]+)/)?.[1] || "";
                 const itens = [];
-                const itemRegex = /(.*?)\s+(\d+)\s*(\d+)/g;
+                const itemRegex = /^(.*?)\s+(\d+)\s+(\d+)\s*$/gm;
                 let match;
                 
                 while ((match = itemRegex.exec(guiaText)) !== null) {
+                    const nome = match[1].trim();
+                    const ref = match[2];
+                    const qtd = match[3];
+                    
+                    console.log('Match encontrado:', { nome, ref, qtd }); // Debug
+                    
+                    // Ignorar linhas que não são produtos
+                    if (nome.includes('CNPJ:') || nome.includes('Pedido:') || nome.includes('Fornecedor:') || 
+                        nome.includes('Previsão:') || nome.includes('Produto') || nome.includes('Referência') || 
+                        nome.includes('Boxes') || nome.includes('Separado') || nome.includes('Data:') ||
+                        nome.includes('✓') || nome.length < 5) {
+                        console.log('Linha ignorada:', nome); // Debug
+                        continue;
+                    }
+                    
+                    console.log('Item válido adicionado:', { nome, ref, qtd }); // Debug
+                    
                     itens.push({
                         id: generateId(),
-                        nome: match[1].replace(/ProdutoReferênciaBoxes✓/i, '').trim(),
-                        ref: match[2],
-                        total: parseInt(match[3]),
+                        nome: nome.replace(/ProdutoReferênciaBoxes✓/i, '').trim(),
+                        ref: ref,
+                        total: parseInt(qtd),
                         coletado: 0,
                         open: true,
                         lastModified: new Date().toISOString()
@@ -325,7 +342,7 @@
             }
             
             guias.forEach((guia, idx) => {
-                const itemMatches = guia.match(/(\d+)\s*(\d+)/g);
+                const itemMatches = guia.match(/^(.*?)\s+(\d+)\s+(\d+)\s*$/gm);
                 if (!itemMatches || itemMatches.length === 0) {
                     errors.push(`Guia ${idx + 1}: Nenhum item válido encontrado`);
                 }
