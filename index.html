@@ -276,67 +276,15 @@
         <div id="inputSection" class="bg-white rounded-2xl p-6 shadow-sm mb-6 border border-slate-200">
             <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Importar Guias</h2>
             
-            <!-- Upload de PDF -->
-            <div class="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
-                <div class="flex items-center gap-3 mb-3">
-                    <span class="text-blue-600 text-lg">📄</span>
-                    <div>
-                        <h3 class="font-bold text-sm text-blue-900">Visualizador de PDF</h3>
-                        <p class="text-xs text-blue-700">Carregue um PDF para usar como referência enquanto digita os dados</p>
-                    </div>
-                </div>
-                
-                <div class="flex gap-2 mb-3">
-                    <input type="file" id="pdfInput" accept=".pdf" class="hidden" onchange="loadPDF(event)">
-                    <button onclick="document.getElementById('pdfInput').click()" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold hover:bg-blue-700 transition-all">
-                        📁 Carregar PDF
-                    </button>
-                    <button onclick="clearPDF()" class="px-4 py-2 bg-red-100 text-red-600 rounded-lg text-sm font-bold hover:bg-red-200 transition-all">
-                        🗑️ Limpar
-                    </button>
-                    <button onclick="zoomIn()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-200 transition-all">
-                        🔍+
-                    </button>
-                    <button onclick="zoomOut()" class="px-3 py-2 bg-gray-100 text-gray-600 rounded-lg text-sm font-bold hover:bg-gray-200 transition-all">
-                        🔍-
-                    </button>
-                </div>
-                
-                <!-- Container do PDF -->
-                <div id="pdfContainer" class="hidden bg-white rounded-lg border-2 border-dashed border-gray-300 overflow-auto" style="height: 400px;">
-                    <canvas id="pdfCanvas"></canvas>
-                </div>
-                
-                <!-- Navegação entre páginas -->
-                <div id="pdfNavigation" class="hidden flex items-center justify-between mt-3">
-                    <button onclick="previousPage()" class="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-bold hover:bg-gray-200 transition-all">
-                        ← Anterior
-                    </button>
-                    <span id="pageInfo" class="text-sm text-gray-600 font-bold">Página 1 de 1</span>
-                    <button onclick="nextPage()" class="px-3 py-1 bg-gray-100 text-gray-600 rounded text-sm font-bold hover:bg-gray-200 transition-all">
-                        Próxima →
-                    </button>
-                </div>
-            </div>
-            
-            <!-- Área de texto para dados -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <div>
-                    <label class="text-xs font-bold text-gray-600 uppercase tracking-wider">Dados da Guia</label>
-                    <textarea id="rawInput" rows="8" class="w-full p-4 bg-slate-50 border rounded-xl text-sm mb-3" placeholder="Cole os dados da guia aqui enquanto olha o PDF ao lado..."></textarea>
-                </div>
-                
-                <div id="pdfViewerPanel" class="hidden lg:block">
-                    <label class="text-xs font-bold text-gray-600 uppercase tracking-wider">Referência PDF</label>
-                    <div class="bg-gray-50 rounded-xl p-2 text-center text-gray-500 text-sm" style="height: 200px;">
-                        Carregue um PDF para visualizar
-                    </div>
-                </div>
+            <div class="mb-4">
+                <label class="block text-sm font-bold text-gray-700 mb-2">📋 Dados da Guia</label>
+                <textarea id="guiaInput" placeholder="Cole aqui os dados da guia de separação..." 
+                    class="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all resize-none h-48"></textarea>
             </div>
             
             <div id="validationErrors" class="hidden mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
-            <button onclick="iniciarNovaSeparacao()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all">
-                INICIAR SEPARAÇÃO
+            <button onclick="iniciarNovaSeparacao()" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold hover:bg-blue-700 transition-all shadow-lg">
+                🚀 INICIAR SEPARAÇÃO
             </button>
         </div>
 

@@ -6,13 +6,6 @@ let db = { lojas: [], metadata: { created: new Date().toISOString(), lastModifie
 let activeLojaIdx = null;
 let activeItemIdx = null;
 
-// Variáveis do PDF
-let pdfDoc = null;
-let pageNum = 1;
-let pageRendering = false;
-let pageNumPending = null;
-let scale = 1.5;
-
 // Carregar dados ao abrir
 window.onload = () => {
     loadFromStorage();
@@ -45,7 +38,13 @@ function saveToStorage() {
 
 // Função principal de iniciação
 function iniciarNovaSeparacao() {
-    const text = document.getElementById('rawInput').value;
+    const guiaInput = document.getElementById('guiaInput');
+    if (!guiaInput) {
+        showNotification('Erro: campo de dados não encontrado', 'error');
+        return;
+    }
+    
+    const text = guiaInput.value;
     if(!text) {
         showNotification('Cole os dados da guia primeiro', 'error');
         return;
@@ -62,35 +61,38 @@ function iniciarNovaSeparacao() {
         const nomeLoja = guiaText.match(/(.*?)(?=CNPJ:)/)?.[1]?.trim() || "Loja";
         const cnpj = guiaText.match(/CNPJ:\s*([\d./-]+)/)?.[1] || "";
         const itens = [];
-        const itemRegex = /^(.*?)\s+(\d{2,4})\s+(\d{1,2})\s*$/gm;
+        // Regex para formato tabulado: Produto[TAB]Referência[TAB]Quantidade
+        const itemRegex = /^(.*?)\t+([A-Z0-9]+)\t+(\d+)\s*$/gm;
         let match;
+        
+        console.log('Processando guia:', guiaText.substring(0, 200) + '...');
         
         while ((match = itemRegex.exec(guiaText)) !== null) {
             const nome = match[1].trim();
             const ref = match[2];
-            const qtd = match[3];
+            const qtd = parseInt(match[3]);
             
-            console.log('Match encontrado:', { nome, ref, qtd }); // Debug
+            console.log('Match encontrado:', { nome, ref, qtd });
             
             // Ignorar linhas que não são produtos
             if (nome.includes('CNPJ:') || nome.includes('Pedido:') || nome.includes('Fornecedor:') || 
                 nome.includes('Previsão:') || nome.includes('Produto') || nome.includes('Referência') || 
                 nome.includes('Boxes') || nome.includes('Separado') || nome.includes('Data:') ||
-                nome.includes('✓') || nome.includes('GUIA') || nome.length < 10 ||
-                !nome.includes('(') && !nome.includes('un/box')) {
-                console.log('Linha ignorada:', nome); // Debug
+                nome.includes('✓') || nome.includes('GUIA') || nome.length < 5 ||
+                !ref.match(/^[A-Z0-9]+$/)) {
+                console.log('Linha ignorada:', nome);
                 continue;
             }
             
-            console.log('Item válido adicionado:', { nome, ref, qtd }); // Debug
+            console.log('Item válido adicionado:', { nome, ref, qtd });
             
             itens.push({
                 id: generateId(),
                 nome: nome.replace(/ProdutoReferênciaBoxes✓/i, '').trim(),
                 ref: ref,
-                total: parseInt(qtd),
+                total: qtd,
                 coletado: 0,
-                open: true,
+                status: 'pending',
                 lastModified: new Date().toISOString()
             });
         }
@@ -108,6 +110,8 @@ function iniciarNovaSeparacao() {
     document.getElementById('inputSection').classList.add('hidden');
     updateStats();
     updateFilterOptions();
+    // Limpar campo após sucesso
+    guiaInput.value = '';
     showNotification('Separação iniciada com sucesso!', 'success');
 }
 
@@ -125,9 +129,38 @@ function validateInput(text) {
     }
     
     guias.forEach((guia, idx) => {
-        const itemMatches = guia.match(/^(.*?)\s+(\d{2,4})\s+(\d{1,2})\s*$/gm);
-        if (!itemMatches || itemMatches.length === 0) {
+        // Usar o mesmo regex e filtros da função de parsing
+        const itemRegex = /^(.*?)\t+([A-Z0-9]+)\t+(\d+)\s*$/gm;
+        let match;
+        let validItems = 0;
+        
+        console.log(`Validando guia ${idx + 1}:`, guia.substring(0, 100) + '...');
+        
+        while ((match = itemRegex.exec(guia)) !== null) {
+            const nome = match[1].trim();
+            const ref = match[2];
+            const qtd = match[3];
+            
+            console.log('Match encontrado:', { nome, ref, qtd });
+            
+            // Ignorar linhas que não são produtos (mesma lógica do parsing)
+            if (nome.includes('CNPJ:') || nome.includes('Pedido:') || nome.includes('Fornecedor:') || 
+                nome.includes('Previsão:') || nome.includes('Produto') || nome.includes('Referência') || 
+                nome.includes('Boxes') || nome.includes('Separado') || nome.includes('Data:') ||
+                nome.includes('✓') || nome.includes('GUIA') || nome.length < 5 ||
+                !ref.match(/^[A-Z0-9]+$/)) {
+                console.log('Linha ignorada:', nome);
+                continue;
+            }
+            
+            validItems++;
+            console.log('Item válido:', { nome, ref, qtd });
+        }
+        
+        if (validItems === 0) {
             errors.push(`Guia ${idx + 1}: Nenhum item válido encontrado`);
+        } else {
+            console.log(`Guia ${idx + 1}: ${validItems} itens válidos encontrados`);
         }
     });
     
@@ -761,128 +794,5 @@ function closeActionsModal() {
     document.getElementById('actionsModal').classList.add('hidden');
 }
 
-// Funções do Visualizador de PDF
-function loadPDF(event) {
-    const file = event.target.files[0];
-    if (file.type !== 'application/pdf') {
-        showNotification('Por favor, selecione um arquivo PDF', 'error');
-        return;
-    }
-
-    // Carregar PDF.js dinamicamente
-    if (typeof window.pdfjsLib === 'undefined') {
-        const script = document.createElement('script');
-        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
-        script.onload = () => {
-            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-            processPDF(file);
-        };
-        document.head.appendChild(script);
-    } else {
-        processPDF(file);
-    }
-}
-
-function processPDF(file) {
-    const fileReader = new FileReader();
-
-    fileReader.onload = function() {
-        const typedarray = new Uint8Array(this.result);
-
-        window.pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
-            pdfDoc = pdf;
-            document.getElementById('pageInfo').textContent = `Página 1 de ${pdf.numPages}`;
-            document.getElementById('pdfContainer').classList.remove('hidden');
-            document.getElementById('pdfNavigation').classList.remove('hidden');
-            document.getElementById('pdfViewerPanel').classList.remove('hidden');
-            
-            // Render primeira página
-            renderPage(pageNum);
-            showNotification('PDF carregado com sucesso!', 'success');
-        });
-    };
-
-    fileReader.readAsArrayBuffer(file);
-}
-
-function renderPage(num) {
-    pageRendering = true;
-    
-    pdfDoc.getPage(num).then(function(page) {
-        const viewport = page.getViewport({scale: scale});
-        const canvas = document.getElementById('pdfCanvas');
-        const context = canvas.getContext('2d');
-        canvas.height = viewport.height;
-        canvas.width = viewport.width;
-
-        const renderContext = {
-            canvasContext: context,
-            viewport: viewport
-        };
-        
-        const renderTask = page.render(renderContext);
-
-        renderTask.promise.then(function() {
-            pageRendering = false;
-            if (pageNumPending !== null) {
-                renderPage(pageNumPending);
-                pageNumPending = null;
-            }
-        });
-    });
-
-    document.getElementById('pageInfo').textContent = `Página ${num} de ${pdfDoc.numPages}`;
-}
-
-function queueRenderPage(num) {
-    if (pageRendering) {
-        pageNumPending = num;
-    } else {
-        renderPage(num);
-    }
-}
-
-function previousPage() {
-    if (pageNum <= 1) {
-        return;
-    }
-    pageNum--;
-    queueRenderPage(pageNum);
-}
-
-function nextPage() {
-    if (pageNum >= pdfDoc.numPages) {
-        return;
-    }
-    pageNum++;
-    queueRenderPage(pageNum);
-}
-
-function zoomIn() {
-    if (!pdfDoc) return;
-    scale += 0.25;
-    queueRenderPage(pageNum);
-}
-
-function zoomOut() {
-    if (!pdfDoc) return;
-    if (scale <= 0.5) return;
-    scale -= 0.25;
-    queueRenderPage(pageNum);
-}
-
-function clearPDF() {
-    pdfDoc = null;
-    pageNum = 1;
-    scale = 1.5;
-    document.getElementById('pdfContainer').classList.add('hidden');
-    document.getElementById('pdfNavigation').classList.add('hidden');
-    document.getElementById('pdfViewerPanel').classList.add('hidden');
-    document.getElementById('pdfInput').value = '';
-    
-    const canvas = document.getElementById('pdfCanvas');
-    const context = canvas.getContext('2d');
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    
-    showNotification('PDF limpo', 'success');
-}
+// Funções do Visualizador de PDF - REMOVIDAS
+// PDF viewer foi removido conforme solicitação do usuário
