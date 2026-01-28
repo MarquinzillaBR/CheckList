@@ -1,0 +1,109 @@
+/* Picking Pro 2.0 - Multi-Loja Avançado - Estilos Principais */
+
+/* Status dos itens */
+.status-concluido { 
+    border-left: 8px solid #22c55e !important; 
+    background-color: #f0fdf4; 
+}
+
+.status-parcial { 
+    border-left: 8px solid #facc15 !important; 
+    background-color: #fefce8; 
+}
+
+.status-atrasado { 
+    border-left: 8px solid #ef4444 !important; 
+    background-color: #fef2f2; 
+}
+
+/* Header glass effect */
+.glass-header { 
+    background: rgba(255, 255, 255, 0.95); 
+    backdrop-filter: blur(10px); 
+}
+
+/* Remove spin buttons from number inputs */
+input::-webkit-outer-spin-button, 
+input::-webkit-inner-spin-button { 
+    -webkit-appearance: none; 
+    margin: 0; 
+    appearance: none;
+}
+
+input[type=number] {
+    -moz-appearance: textfield;
+    appearance: none;
+}
+
+/* Numeric keypad buttons */
+.numpad-btn { 
+    transition: all 0.15s ease; 
+    user-select: none; 
+    -webkit-user-select: none;
+    touch-action: manipulation;
+}
+
+.numpad-btn:active { 
+    transform: scale(0.95); 
+    background-color: #dbeafe !important;
+}
+
+/* Animations */
+.fade-in { 
+    animation: fadeIn 0.3s ease-in; 
+}
+
+@keyframes fadeIn { 
+    from { opacity: 0; transform: translateY(10px); } 
+    to { opacity: 1; transform: translateY(0); } 
+}
+
+.pulse { 
+    animation: pulse 2s infinite; 
+}
+
+@keyframes pulse { 
+    0%, 100% { opacity: 1; } 
+    50% { opacity: 0.5; } 
+}
+
+.slide-down { 
+    animation: slideDown 0.3s ease-out; 
+}
+
+@keyframes slideDown { 
+    from { max-height: 0; opacity: 0; } 
+    to { max-height: 500px; opacity: 1; } 
+}
+
+/* Mobile optimizations */
+@media (max-width: 768px) {
+    .numpad-btn {
+        padding: 1.5rem;
+        font-size: 1.5rem;
+    }
+    
+    .glass-header {
+        padding: 1rem;
+    }
+}
+
+/* Print styles for PDF */
+@media print {
+    body {
+        background: white !important;
+    }
+    
+    .glass-header {
+        background: white !important;
+        backdrop-filter: none;
+    }
+    
+    button, .numpad-btn {
+        display: none !important;
+    }
+    
+    .modal {
+        display: none !important;
+    }
+}

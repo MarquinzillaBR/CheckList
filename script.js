@@ -5,6 +5,13 @@ let db = { lojas: [], metadata: { created: new Date().toISOString(), lastModifie
 let activeLojaIdx = null;
 let activeItemIdx = null;
 
+// Variáveis do PDF
+let pdfDoc = null;
+let pageNum = 1;
+let pageRendering = false;
+let pageNumPending = null;
+let scale = 1.5;
+
 // Carregar dados ao abrir
 window.onload = () => {
     loadFromStorage();
@@ -396,6 +403,14 @@ function importData() {
     input.accept = '.json';
     input.onchange = e => {
         const file = e.target.files[0];
+        if (!file) return;
+        
+        // Verificar se é PDF (não permitir)
+        if (file.type === 'application/pdf') {
+            showNotification('Use o visualizador de PDF acima para ver PDFs. Importar é apenas para arquivos JSON.', 'error');
+            return;
+        }
+        
         const reader = new FileReader();
         reader.onload = event => {
             try {
@@ -604,31 +619,65 @@ function generatePDF() {
     const { jsPDF } = window.jspdf;
     const doc = new jsPDF();
     
-    // Cabeçalho
+    // Cabeçalho simples
     doc.setFontSize(20);
+    doc.setFont(undefined, 'bold');
     doc.text('Relatorio de Separacao', 105, 20, { align: 'center' });
     
     doc.setFontSize(12);
+    doc.setFont(undefined, 'normal');
     doc.text(`Data: ${new Date().toLocaleDateString('pt-BR')}`, 105, 30, { align: 'center' });
     
     let yPosition = 50;
     
+    // Resumo geral simples
+    let totalItens = 0, totalSeparado = 0, concluidos = 0, parciais = 0, pendentes = 0;
+    
+    db.lojas.forEach(loja => {
+        loja.itens.forEach(item => {
+            totalItens++;
+            totalSeparado += item.coletado;
+            if (item.coletado >= item.total) concluidos++;
+            else if (item.coletado > 0) parciais++;
+            else pendentes++;
+        });
+    });
+    
+    const geralPercent = totalItens > 0 ? Math.round((totalSeparado / totalItens) * 100) : 0;
+    
+    // Box de resumo simples
+    doc.setFillColor(240, 240, 240);
+    doc.rect(20, yPosition - 10, 170, 30, 'F');
+    doc.setDrawColor(200, 200, 200);
+    doc.rect(20, yPosition - 10, 170, 30);
+    
+    doc.setFontSize(12);
+    doc.setFont(undefined, 'bold');
+    doc.text(`Progresso Total: ${geralPercent}% | Concluidos: ${concluidos} | Parciais: ${parciais} | Pendentes: ${pendentes}`, 105, yPosition + 5, { align: 'center' });
+    
+    yPosition += 40;
+    
+    // Detalhes por loja
     db.lojas.forEach((loja, index) => {
-        if (yPosition > 250) {
+        if (yPosition > 240) {
             doc.addPage();
             yPosition = 20;
         }
         
+        // Cabeçalho da loja
         doc.setFontSize(14);
         doc.setFont(undefined, 'bold');
         doc.text(`${index + 1}. ${loja.nome}`, 20, yPosition);
         
-        doc.setFontSize(10);
-        doc.setFont(undefined, 'normal');
-        doc.text(`CNPJ: ${loja.cnpj}`, 20, yPosition + 7);
+        if (loja.cnpj) {
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`CNPJ: ${loja.cnpj}`, 20, yPosition + 7);
+        }
         
-        yPosition += 15;
+        yPosition += 20;
         
+        // Itens da loja
         loja.itens.forEach(item => {
             if (yPosition > 270) {
                 doc.addPage();
@@ -638,16 +687,145 @@ function generatePDF() {
             const status = item.coletado >= item.total ? 'CONCLUIDO' : 
                           item.coletado > 0 ? 'PARCIAL' : 'PENDENTE';
             
-            doc.text(`  ${item.ref} - ${item.nome.substring(0, 40)}...`, 20, yPosition);
+            doc.setFontSize(10);
+            doc.setFont(undefined, 'normal');
+            doc.text(`  ${item.ref} - ${item.nome.substring(0, 50)}${item.nome.length > 50 ? '...' : ''}`, 20, yPosition);
             doc.text(`${item.coletado}/${item.total} - ${status}`, 150, yPosition);
             
-            yPosition += 7;
+            yPosition += 8;
         });
         
-        yPosition += 10;
+        yPosition += 15;
     });
     
     // Salvar PDF
-    doc.save(`separacao_${new Date().toLocaleDateString('pt-BR')}.pdf`);
-    showNotification('PDF exportado com sucesso!', 'success');
+    const fileName = `relatorio_separacao_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
+    doc.save(fileName);
+    showNotification('PDF gerado com sucesso!', 'success');
+}
+
+// Funções do Visualizador de PDF
+function loadPDF(event) {
+    const file = event.target.files[0];
+    if (file.type !== 'application/pdf') {
+        showNotification('Por favor, selecione um arquivo PDF', 'error');
+        return;
+    }
+
+    // Carregar PDF.js dinamicamente
+    if (typeof window.pdfjsLib === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            processPDF(file);
+        };
+        document.head.appendChild(script);
+    } else {
+        processPDF(file);
+    }
+}
+
+function processPDF(file) {
+    const fileReader = new FileReader();
+
+    fileReader.onload = function() {
+        const typedarray = new Uint8Array(this.result);
+
+        window.pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+            pdfDoc = pdf;
+            document.getElementById('pageInfo').textContent = `Página 1 de ${pdf.numPages}`;
+            document.getElementById('pdfContainer').classList.remove('hidden');
+            document.getElementById('pdfNavigation').classList.remove('hidden');
+            document.getElementById('pdfViewerPanel').classList.remove('hidden');
+            
+            // Render primeira página
+            renderPage(pageNum);
+            showNotification('PDF carregado com sucesso!', 'success');
+        });
+    };
+
+    fileReader.readAsArrayBuffer(file);
+}
+
+function renderPage(num) {
+    pageRendering = true;
+    
+    pdfDoc.getPage(num).then(function(page) {
+        const viewport = page.getViewport({scale: scale});
+        const canvas = document.getElementById('pdfCanvas');
+        const context = canvas.getContext('2d');
+        canvas.height = viewport.height;
+        canvas.width = viewport.width;
+
+        const renderContext = {
+            canvasContext: context,
+            viewport: viewport
+        };
+        
+        const renderTask = page.render(renderContext);
+
+        renderTask.promise.then(function() {
+            pageRendering = false;
+            if (pageNumPending !== null) {
+                renderPage(pageNumPending);
+                pageNumPending = null;
+            }
+        });
+    });
+
+    document.getElementById('pageInfo').textContent = `Página ${num} de ${pdfDoc.numPages}`;
+}
+
+function queueRenderPage(num) {
+    if (pageRendering) {
+        pageNumPending = num;
+    } else {
+        renderPage(num);
+    }
+}
+
+function previousPage() {
+    if (pageNum <= 1) {
+        return;
+    }
+    pageNum--;
+    queueRenderPage(pageNum);
+}
+
+function nextPage() {
+    if (pageNum >= pdfDoc.numPages) {
+        return;
+    }
+    pageNum++;
+    queueRenderPage(pageNum);
+}
+
+function zoomIn() {
+    if (!pdfDoc) return;
+    scale += 0.25;
+    queueRenderPage(pageNum);
+}
+
+function zoomOut() {
+    if (!pdfDoc) return;
+    if (scale <= 0.5) return;
+    scale -= 0.25;
+    queueRenderPage(pageNum);
+}
+
+function clearPDF() {
+    pdfDoc = null;
+    pageNum = 1;
+    scale = 1.5;
+    document.getElementById('pdfContainer').classList.add('hidden');
+    document.getElementById('pdfNavigation').classList.add('hidden');
+    document.getElementById('pdfViewerPanel').classList.add('hidden');
+    document.getElementById('pdfInput').value = '';
+    
+    const canvas = document.getElementById('pdfCanvas');
+    const context = canvas.getContext('2d');
+    context.clearRect(0, 0, canvas.width, canvas.height);
+    
+    showNotification('PDF limpo', 'success');
 }
