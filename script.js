@@ -688,6 +688,16 @@ function setupKeyboardShortcuts() {
                 applyFilters();
             }
         });
+        
+        // Auto-select ao clicar no campo
+        searchInput.addEventListener('click', function() {
+            this.select();
+        });
+        
+        // Auto-select ao focar (tab)
+        searchInput.addEventListener('focus', function() {
+            this.select();
+        });
     }
 }
 
