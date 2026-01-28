@@ -6,6 +6,13 @@ let db = { lojas: [], metadata: { created: new Date().toISOString(), lastModifie
 let activeLojaIdx = null;
 let activeItemIdx = null;
 
+// Variáveis do PDF Import
+let pdfDoc = null;
+let pageNum = 1;
+let pageRendering = false;
+let pageNumPending = null;
+let scale = 1.5;
+
 // Carregar dados ao abrir
 window.onload = () => {
     loadFromStorage();
@@ -61,8 +68,8 @@ function iniciarNovaSeparacao() {
         const nomeLoja = guiaText.match(/(.*?)(?=CNPJ:)/)?.[1]?.trim() || "Loja";
         const cnpj = guiaText.match(/CNPJ:\s*([\d./-]+)/)?.[1] || "";
         const itens = [];
-        // Regex para formato tabulado: Produto[TAB]Referência[TAB]Quantidade
-        const itemRegex = /^(.*?)\t+([A-Z0-9]+)\t+(\d+)\s*$/gm;
+        // Regex para formato PDF extraído (texto continuo com múltiplos espaços)
+        const itemRegex = /([A-Za-z\s\(\)\d\/unbox]+?)\s+([A-Z0-9\-\/]+)\s+(\d+)\s*(?=[A-Za-z\s\(\)\d\/unbox]+?[A-Z0-9\-\/]+\s+\d+|$)/g;
         let match;
         
         console.log('Processando guia:', guiaText.substring(0, 200) + '...');
@@ -78,8 +85,9 @@ function iniciarNovaSeparacao() {
             if (nome.includes('CNPJ:') || nome.includes('Pedido:') || nome.includes('Fornecedor:') || 
                 nome.includes('Previsão:') || nome.includes('Produto') || nome.includes('Referência') || 
                 nome.includes('Boxes') || nome.includes('Separado') || nome.includes('Data:') ||
-                nome.includes('✓') || nome.includes('GUIA') || nome.length < 5 ||
-                !ref.match(/^[A-Z0-9]+$/)) {
+                nome.includes('✓') || nome.includes('GUIA') || nome.includes('about:blank') ||
+                nome.includes('Guia -') || nome.match(/^\d{2}\/\d{2}\/\d{4}/) || nome.length < 5 ||
+                !ref.match(/^[A-Z0-9\-\/]+$/)) {
                 console.log('Linha ignorada:', nome);
                 continue;
             }
@@ -130,7 +138,7 @@ function validateInput(text) {
     
     guias.forEach((guia, idx) => {
         // Usar o mesmo regex e filtros da função de parsing
-        const itemRegex = /^(.*?)\t+([A-Z0-9]+)\t+(\d+)\s*$/gm;
+        const itemRegex = /([A-Za-z\s\(\)\d\/unbox]+?)\s+([A-Z0-9\-\/]+)\s+(\d+)\s*(?=[A-Za-z\s\(\)\d\/unbox]+?[A-Z0-9\-\/]+\s+\d+|$)/g;
         let match;
         let validItems = 0;
         
@@ -147,8 +155,9 @@ function validateInput(text) {
             if (nome.includes('CNPJ:') || nome.includes('Pedido:') || nome.includes('Fornecedor:') || 
                 nome.includes('Previsão:') || nome.includes('Produto') || nome.includes('Referência') || 
                 nome.includes('Boxes') || nome.includes('Separado') || nome.includes('Data:') ||
-                nome.includes('✓') || nome.includes('GUIA') || nome.length < 5 ||
-                !ref.match(/^[A-Z0-9]+$/)) {
+                nome.includes('✓') || nome.includes('GUIA') || nome.includes('about:blank') ||
+                nome.includes('Guia -') || nome.match(/^\d{2}\/\d{2}\/\d{4}/) || nome.length < 5 ||
+                !ref.match(/^[A-Z0-9\-\/]+$/)) {
                 console.log('Linha ignorada:', nome);
                 continue;
             }
@@ -796,3 +805,114 @@ function closeActionsModal() {
 
 // Funções do Visualizador de PDF - REMOVIDAS
 // PDF viewer foi removido conforme solicitação do usuário
+
+// Funções de Importação PDF
+function importPDF(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (file.type !== 'application/pdf') {
+        showNotification('Por favor, selecione um arquivo PDF', 'error');
+        return;
+    }
+
+    const statusDiv = document.getElementById('pdfImportStatus');
+    statusDiv.classList.remove('hidden');
+    statusDiv.textContent = 'Carregando PDF...';
+
+    // Carregar PDF.js dinamicamente
+    if (typeof window.pdfjsLib === 'undefined') {
+        const script = document.createElement('script');
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+        script.onload = () => {
+            window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            processPDFImport(file);
+        };
+        document.head.appendChild(script);
+    } else {
+        processPDFImport(file);
+    }
+}
+
+function processPDFImport(file) {
+    const fileReader = new FileReader();
+    const statusDiv = document.getElementById('pdfImportStatus');
+
+    fileReader.onload = function() {
+        const typedarray = new Uint8Array(this.result);
+
+        window.pdfjsLib.getDocument(typedarray).promise.then(function(pdf) {
+            pdfDoc = pdf;
+            statusDiv.textContent = `Extraindo texto de ${pdf.numPages} páginas...`;
+            
+            let fullText = '';
+            let pagesProcessed = 0;
+            
+            // Processar todas as páginas
+            const processPage = function(pageNum) {
+                pdfDoc.getPage(pageNum).then(function(page) {
+                    return page.getTextContent();
+                }).then(function(textContent) {
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += pageText + '\n';
+                    pagesProcessed++;
+                    
+                    statusDiv.textContent = `Processando página ${pagesProcessed} de ${pdfDoc.numPages}...`;
+                    
+                    if (pagesProcessed < pdfDoc.numPages) {
+                        processPage(pageNum + 1);
+                    } else {
+                        // Todas as páginas processadas
+                        statusDiv.textContent = 'PDF processado com sucesso!';
+                        statusDiv.classList.add('bg-green-50', 'border-green-200', 'text-green-700');
+                        statusDiv.classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-700');
+                        
+                        // Preencher o textarea com o texto extraído
+                        document.getElementById('guiaInput').value = fullText;
+                        
+                        showNotification('PDF importado com sucesso! ' + pdfDoc.numPages + ' páginas processadas', 'success');
+                        
+                        // Limpar após 3 segundos
+                        setTimeout(() => {
+                            statusDiv.classList.add('hidden');
+                            statusDiv.classList.remove('bg-green-50', 'border-green-200', 'text-green-700');
+                            statusDiv.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-700');
+                            statusDiv.textContent = 'Processando PDF...';
+                        }, 3000);
+                    }
+                }).catch(function(error) {
+                    console.error('Erro ao extrair texto da página:', error);
+                    statusDiv.textContent = 'Erro ao processar página ' + pageNum;
+                    statusDiv.classList.add('bg-red-50', 'border-red-200', 'text-red-700');
+                    statusDiv.classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-700');
+                });
+            };
+            
+            // Começar pela primeira página
+            processPage(1);
+            
+        }).catch(function(error) {
+            console.error('Erro ao carregar PDF:', error);
+            statusDiv.textContent = 'Erro ao carregar PDF: ' + error.message;
+            statusDiv.classList.add('bg-red-50', 'border-red-200', 'text-red-700');
+            statusDiv.classList.remove('bg-blue-50', 'border-blue-200', 'text-blue-700');
+            showNotification('Erro ao carregar PDF', 'error');
+        });
+    };
+
+    fileReader.readAsArrayBuffer(file);
+}
+
+function clearPDFImport() {
+    document.getElementById('pdfFileInput').value = '';
+    document.getElementById('guiaInput').value = '';
+    
+    const statusDiv = document.getElementById('pdfImportStatus');
+    statusDiv.classList.add('hidden');
+    statusDiv.classList.remove('bg-green-50', 'border-green-200', 'text-green-700');
+    statusDiv.classList.remove('bg-red-50', 'border-red-200', 'text-red-700');
+    statusDiv.classList.add('bg-blue-50', 'border-blue-200', 'text-blue-700');
+    statusDiv.textContent = 'Processando PDF...';
+    
+    showNotification('PDF limpo', 'success');
+}
