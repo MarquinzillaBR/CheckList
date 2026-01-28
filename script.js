@@ -678,6 +678,17 @@ function setupKeyboardShortcuts() {
             }
         }
     });
+    
+    // Setup do campo de busca
+    const searchInput = document.getElementById('searchInput');
+    if (searchInput) {
+        searchInput.addEventListener('input', applyFilters);
+        searchInput.addEventListener('keyup', (e) => {
+            if (e.key === 'Enter') {
+                applyFilters();
+            }
+        });
+    }
 }
 
 // Auto backup
