@@ -178,6 +178,10 @@ function validateInput(text) {
 
 function showValidationErrors(errors) {
     const errorDiv = document.getElementById('validationErrors');
+    if (!errorDiv) {
+        console.error('Elemento validationErrors não encontrado');
+        return;
+    }
     errorDiv.innerHTML = '<strong>Erros de validação:</strong><ul class="list-disc ml-4 mt-2">' + 
         errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
     errorDiv.classList.remove('hidden');
@@ -249,9 +253,20 @@ function getFilteredLojas() {
     let lojas = [...db.lojas];
     const statusFilter = document.getElementById('filterStatus').value;
     const lojaFilter = document.getElementById('filterLoja').value;
+    const sortBy = document.getElementById('sortBy').value;
     
     if (lojaFilter) {
         lojas = lojas.filter(l => l.id === lojaFilter);
+    }
+    
+    if (sortBy === 'name') {
+        lojas.sort((a, b) => a.nome.localeCompare(b.nome));
+    } else if (sortBy === 'progress') {
+        lojas.sort((a, b) => {
+            const progressA = a.stats.completed / a.stats.total;
+            const progressB = b.stats.completed / b.stats.total;
+            return progressB - progressA;
+        });
     }
     
     return lojas;
@@ -298,6 +313,13 @@ function toggleLoja(idx) {
 }
 
 function openModal(lIdx, iIdx) {
+    // Validar índices
+    if (!db.lojas[lIdx] || !db.lojas[lIdx].itens[iIdx]) {
+        console.error('Índices inválidos:', { lIdx, iIdx });
+        showNotification('Erro ao abrir item', 'error');
+        return;
+    }
+    
     activeLojaIdx = lIdx;
     activeItemIdx = iIdx;
     const item = db.lojas[lIdx].itens[iIdx];
@@ -359,6 +381,12 @@ function subtractQty() {
 }
 
 function checkQuantity() {
+    // Validar índices
+    if (!db.lojas[activeLojaIdx] || !db.lojas[activeLojaIdx].itens[activeItemIdx]) {
+        console.error('Índices inválidos para check:', { activeLojaIdx, activeItemIdx });
+        return false;
+    }
+    
     const val = parseInt(document.getElementById('inputQty').value) || 0;
     const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
     const errorMsg = document.getElementById('errorMsg');
@@ -373,6 +401,13 @@ function checkQuantity() {
 }
 
 function saveQty() {
+    // Validar índices
+    if (!db.lojas[activeLojaIdx] || !db.lojas[activeLojaIdx].itens[activeItemIdx]) {
+        console.error('Índices inválidos para save:', { activeLojaIdx, activeItemIdx });
+        showNotification('Erro ao salvar quantidade', 'error');
+        return;
+    }
+    
     const val = parseInt(document.getElementById('inputQty').value) || 0;
     const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
     
@@ -391,6 +426,13 @@ function saveQty() {
 
 // Função para zerar quantidade do item
 function resetItemQty() {
+    // Validar índices
+    if (!db.lojas[activeLojaIdx] || !db.lojas[activeLojaIdx].itens[activeItemIdx]) {
+        console.error('Índices inválidos para reset:', { activeLojaIdx, activeItemIdx });
+        showNotification('Erro ao zerar item', 'error');
+        return;
+    }
+    
     const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
     
     // Abrir modal de confirmação com mensagem personalizada
@@ -405,6 +447,13 @@ function closeResetItemModal() {
 }
 
 function confirmResetItem() {
+    // Validar índices
+    if (!db.lojas[activeLojaIdx] || !db.lojas[activeLojaIdx].itens[activeItemIdx]) {
+        console.error('Índices inválidos para confirm reset:', { activeLojaIdx, activeItemIdx });
+        showNotification('Erro ao confirmar zerar item', 'error');
+        return;
+    }
+    
     const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
     
     item.coletado = 0;
@@ -675,6 +724,12 @@ function setupKeyboardShortcuts() {
             }
             if (!document.getElementById('confirmModal').classList.contains('hidden')) {
                 closeConfirmModal();
+            }
+            if (!document.getElementById('resetItemModal').classList.contains('hidden')) {
+                closeResetItemModal();
+            }
+            if (!document.getElementById('actionsModal').classList.contains('hidden')) {
+                closeActionsModal();
             }
         }
     });
