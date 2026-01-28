@@ -1,4 +1,5 @@
 // Picking Pro 2.0 - Multi-Loja Avançado - JavaScript Principal
+// SEPARATION BE MAKE 3.0
 
 // Variáveis globais
 let db = { lojas: [], metadata: { created: new Date().toISOString(), lastModified: new Date().toISOString() } };
@@ -259,17 +260,31 @@ function openModal(lIdx, iIdx) {
     activeItemIdx = iIdx;
     const item = db.lojas[lIdx].itens[iIdx];
     
-    document.getElementById('modalTitle').innerText = item.nome;
-    document.getElementById('modalRef').innerText = item.ref;
-    document.getElementById('targetQty').innerText = item.total;
-    document.getElementById('currentQty').innerText = item.coletado;
-    document.getElementById('inputQty').value = '';
-    document.getElementById('errorMsg').classList.add('hidden');
-    document.getElementById('successMsg').classList.add('hidden');
-    document.getElementById('modal').classList.remove('hidden');
+    // Verificar se elementos existem
+    const modal = document.getElementById('modal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalRef = document.getElementById('modalRef');
+    const targetQty = document.getElementById('targetQty');
+    const currentQty = document.getElementById('currentQty');
+    const inputQty = document.getElementById('inputQty');
+    const errorMsg = document.getElementById('errorMsg');
+    
+    if (!modal || !modalTitle || !modalRef || !targetQty || !currentQty || !inputQty || !errorMsg) {
+        console.error('Elementos do modal não encontrados');
+        showNotification('Erro ao abrir modal', 'error');
+        return;
+    }
+    
+    modalTitle.innerText = item.nome;
+    modalRef.innerText = item.ref;
+    targetQty.innerText = item.total;
+    currentQty.innerText = item.coletado;
+    inputQty.value = '';
+    errorMsg.classList.add('hidden');
+    modal.classList.remove('hidden');
     
     setTimeout(() => {
-        document.getElementById('inputQty').focus();
+        inputQty.focus();
     }, 100);
 }
 
@@ -332,6 +347,36 @@ function saveQty() {
     showNotification(`Adicionado ${val} unidades ao item ${item.ref}`, 'success');
 }
 
+// Função para zerar quantidade do item
+function resetItemQty() {
+    const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
+    
+    // Abrir modal de confirmação com mensagem personalizada
+    const message = `Tem certeza que deseja zerar a quantidade do item ${item.ref}? Isso irá remover ${item.coletado} unidades já separadas.`;
+    document.getElementById('resetItemMessage').textContent = message;
+    document.getElementById('resetItemModal').classList.remove('hidden');
+}
+
+// Funções do modal de zerar item
+function closeResetItemModal() {
+    document.getElementById('resetItemModal').classList.add('hidden');
+}
+
+function confirmResetItem() {
+    const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
+    
+    item.coletado = 0;
+    item.lastModified = new Date().toISOString();
+    
+    updateLojaStats(activeLojaIdx);
+    closeModal();
+    closeResetItemModal();
+    saveAndRender();
+    updateStats();
+    
+    showNotification(`Quantidade do item ${item.ref} zerada com sucesso!`, 'success');
+}
+
 function updateLojaStats(lojaIdx) {
     const loja = db.lojas[lojaIdx];
     loja.stats = {
@@ -348,7 +393,10 @@ function saveAndRender() {
 }
 
 function closeModal() { 
-    document.getElementById('modal').classList.add('hidden'); 
+    const modal = document.getElementById('modal');
+    if (modal) {
+        modal.classList.add('hidden'); 
+    }
 }
 
 // Cards colapsáveis
@@ -702,6 +750,15 @@ function generatePDF() {
     const fileName = `relatorio_separacao_${new Date().toLocaleDateString('pt-BR').replace(/\//g, '-')}.pdf`;
     doc.save(fileName);
     showNotification('PDF gerado com sucesso!', 'success');
+}
+
+// Funções do modal de ações
+function openActionsModal() {
+    document.getElementById('actionsModal').classList.remove('hidden');
+}
+
+function closeActionsModal() {
+    document.getElementById('actionsModal').classList.add('hidden');
 }
 
 // Funções do Visualizador de PDF

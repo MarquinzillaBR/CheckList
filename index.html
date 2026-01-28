@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Picking Pro 2.0 - Multi-Loja Avançado</title>
+    <title>Separation BE MAKE 3.0 - Multi-Loja Avançado</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="style.css">
 </head>
@@ -11,62 +11,90 @@
 
     <!-- Modal Principal -->
     <div id="modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
-        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl fade-in">
+        <div class="bg-white rounded-3xl p-4 sm:p-6 w-full max-w-md sm:max-w-sm shadow-2xl fade-in max-h-[90vh] overflow-y-auto">
             <div class="flex justify-between items-start mb-4">
-                <div>
-                    <h3 id="modalTitle" class="text-xl font-bold text-gray-800 mb-1">Separar Produto</h3>
-                    <p id="modalRef" class="text-blue-600 font-mono text-sm"></p>
+                <div class="flex-1 pr-2">
+                    <h3 id="modalTitle" class="text-lg sm:text-xl font-bold text-gray-800 mb-1 line-clamp-2">Separar Produto</h3>
+                    <p id="modalRef" class="text-blue-600 font-mono text-sm">REF</p>
                 </div>
-                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600 text-2xl flex-shrink-0">
                     ×
                 </button>
             </div>
             
-            <div class="bg-slate-100 p-4 rounded-2xl mb-4 flex justify-between items-center">
-                <div>
+            <div class="bg-slate-100 p-3 sm:p-4 rounded-2xl mb-4 flex justify-between items-center">
+                <div class="flex-1">
                     <p class="text-xs text-gray-500 uppercase">Necessário</p>
-                    <p id="targetQty" class="text-2xl font-black text-gray-800">0</p>
+                    <p id="targetQty" class="text-xl sm:text-2xl font-black text-gray-800">0</p>
                 </div>
-                <div class="text-right">
+                <div class="text-right flex-1">
                     <p class="text-xs text-gray-500 uppercase">Já separado</p>
-                    <p id="currentQty" class="text-2xl font-black text-blue-600">0</p>
+                    <p id="currentQty" class="text-xl sm:text-2xl font-black text-blue-600">0</p>
                 </div>
             </div>
 
-            <div class="mb-4">
-                <label class="block text-sm font-bold mb-2 text-gray-700">Quanto você coletou agora?</label>
-                <div class="relative">
-                    <input type="number" id="inputQty" readonly 
-                        class="w-full p-4 text-center text-3xl font-bold border-2 border-gray-200 rounded-2xl mb-2 focus:border-blue-500 outline-none bg-gray-50" 
-                        placeholder="0">
-                    <button onclick="clearInput()" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 p-2">
-                        ←
+            <div class="bg-slate-100 p-3 sm:p-4 rounded-2xl mb-4">
+                <div class="flex justify-between items-center mb-3">
+                    <div class="flex-1 pr-2">
+                        <p class="text-xs text-gray-500 uppercase">Quanto você coletou agora?</p>
+                        <input type="number" id="inputQty" class="w-full p-2 sm:p-3 bg-white border rounded-xl text-lg font-bold text-center" placeholder="0" oninput="checkQuantity()">
+                    </div>
+                </div>
+                
+                <div id="errorMsg" class="hidden mb-3 p-2 sm:p-3 bg-red-50 border border-red-200 rounded-xl text-xs sm:text-sm text-red-700">
+                    Quantidade excede o necessário!
+                </div>
+                
+                <!-- Teclado Numérico Responsivo -->
+                <div class="grid grid-cols-3 gap-1 sm:gap-2 mb-4">
+                    <button onclick="appendNumber('1')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">1</button>
+                    <button onclick="appendNumber('2')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">2</button>
+                    <button onclick="appendNumber('3')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">3</button>
+                    <button onclick="appendNumber('4')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">4</button>
+                    <button onclick="appendNumber('5')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">5</button>
+                    <button onclick="appendNumber('6')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">6</button>
+                    <button onclick="appendNumber('7')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">7</button>
+                    <button onclick="appendNumber('8')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">8</button>
+                    <button onclick="appendNumber('9')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">9</button>
+                    <button onclick="clearInput()" class="numpad-btn bg-red-100 border-2 border-red-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-red-200 text-red-600 aspect-square flex items-center justify-center">←</button>
+                    <button onclick="appendNumber('0')" class="numpad-btn bg-white border-2 border-gray-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-gray-50 aspect-square flex items-center justify-center">0</button>
+                    <button onclick="subtractQty()" class="numpad-btn bg-orange-100 border-2 border-orange-200 rounded-xl p-3 sm:p-4 text-base sm:text-lg font-bold hover:bg-orange-200 text-orange-600 aspect-square flex items-center justify-center">−</button>
+                </div>
+                
+                <!-- Botões de Ação Responsivos -->
+                <div class="grid grid-cols-2 gap-2 sm:gap-3">
+                    <button onclick="resetItemQty()" class="bg-red-100 text-red-600 p-3 sm:p-4 rounded-xl font-bold hover:bg-red-200 transition-all text-sm sm:text-base">
+                        🗑️ Zerar
+                    </button>
+                    <button onclick="saveQty()" class="bg-blue-600 text-white p-3 sm:p-4 rounded-xl font-bold hover:bg-blue-700 transition-all text-sm sm:text-base">
+                        ✅ Salvar
                     </button>
                 </div>
-                <p id="errorMsg" class="text-red-500 text-xs font-bold mb-2 hidden">⚠️ Valor excede o total necessário!</p>
-                <p id="successMsg" class="text-green-500 text-xs font-bold mb-2 hidden">✅ Quantidade atualizada!</p>
             </div>
 
-            <!-- Teclado Numérico -->
-            <div class="grid grid-cols-3 gap-2 mb-4">
-                <button onclick="appendNumber('1')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">1</button>
-                <button onclick="appendNumber('2')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">2</button>
-                <button onclick="appendNumber('3')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">3</button>
-                <button onclick="appendNumber('4')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">4</button>
-                <button onclick="appendNumber('5')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">5</button>
-                <button onclick="appendNumber('6')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">6</button>
-                <button onclick="appendNumber('7')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">7</button>
-                <button onclick="appendNumber('8')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">8</button>
-                <button onclick="appendNumber('9')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">9</button>
-                <button onclick="appendNumber('0')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold col-span-2">0</button>
-                <button onclick="subtractQty()" class="numpad-btn bg-red-100 hover:bg-red-200 p-4 rounded-xl text-xl font-bold">
-                    −
+            <div class="flex gap-2 sm:gap-3">
+                <button onclick="closeModal()" class="flex-1 py-3 sm:py-4 bg-slate-200 rounded-xl font-bold text-gray-600 text-sm sm:text-base">Cancelar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação para Zerar Item -->
+    <div id="resetItemModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-red-600 text-2xl">🗑️</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Zerar Item</h3>
+                <p id="resetItemMessage" class="text-gray-600">Tem certeza que deseja zerar a quantidade do item? Isso irá remover as unidades já separadas.</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeResetItemModal()" class="flex-1 py-3 bg-gray-200 rounded-xl font-bold text-gray-600">
+                    Cancelar
                 </button>
-            </div>
-
-            <div class="flex gap-2">
-                <button onclick="closeModal()" class="flex-1 py-4 bg-slate-200 rounded-xl font-bold text-gray-600">Cancelar</button>
-                <button onclick="saveQty()" class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg">Confirmar</button>
+                <button onclick="confirmResetItem()" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg">
+                    Zerar
+                </button>
             </div>
         </div>
     </div>
@@ -105,25 +133,67 @@
         </div>
     </div>
 
+    <!-- Modal de Ações -->
+    <div id="actionsModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl fade-in">
+            <div class="flex justify-between items-center mb-6">
+                <h3 class="text-xl font-bold text-gray-800">Ações do Sistema</h3>
+                <button onclick="closeActionsModal()" class="text-gray-400 hover:text-gray-600 text-2xl">
+                    ×
+                </button>
+            </div>
+            
+            <div class="space-y-3">
+                <button onclick="window.open('https://gestor-de-pedidos-multi-loja-23b843e5.base44.app/Pedidos', '_blank'); closeActionsModal();" class="w-full bg-purple-600 text-white p-4 rounded-xl font-bold hover:bg-purple-700 transition-all flex items-center gap-3">
+                    <span class="text-xl">🛒</span>
+                    <div class="text-left">
+                        <div class="font-bold">Gestor de Pedidos</div>
+                        <div class="text-xs opacity-80">Abrir sistema de pedidos</div>
+                    </div>
+                </button>
+                
+                <button onclick="exportData(); closeActionsModal();" class="w-full bg-green-600 text-white p-4 rounded-xl font-bold hover:bg-green-700 transition-all flex items-center gap-3">
+                    <span class="text-xl">📤</span>
+                    <div class="text-left">
+                        <div class="font-bold">Exportar JSON</div>
+                        <div class="text-xs opacity-80">Salvar dados em arquivo</div>
+                    </div>
+                </button>
+                
+                <button onclick="importData(); closeActionsModal();" class="w-full bg-blue-600 text-white p-4 rounded-xl font-bold hover:bg-blue-700 transition-all flex items-center gap-3">
+                    <span class="text-xl">📥</span>
+                    <div class="text-left">
+                        <div class="font-bold">Importar JSON</div>
+                        <div class="text-xs opacity-80">Carregar dados salvos</div>
+                    </div>
+                </button>
+                
+                <button onclick="exportPDF(); closeActionsModal();" class="w-full bg-indigo-600 text-white p-4 rounded-xl font-bold hover:bg-indigo-700 transition-all flex items-center gap-3">
+                    <span class="text-xl">📄</span>
+                    <div class="text-left">
+                        <div class="font-bold">Exportar PDF</div>
+                        <div class="text-xs opacity-80">Gerar relatório em PDF</div>
+                    </div>
+                </button>
+                
+                <button onclick="showReport(); closeActionsModal();" class="w-full bg-gray-600 text-white p-4 rounded-xl font-bold hover:bg-gray-700 transition-all flex items-center gap-3">
+                    <span class="text-xl">📊</span>
+                    <div class="text-left">
+                        <div class="font-bold">Relatório</div>
+                        <div class="text-xs opacity-80">Ver estatísticas</div>
+                    </div>
+                </button>
+            </div>
+        </div>
+    </div>
+
     <header class="sticky top-0 z-40 glass-header border-b p-4 shadow-sm">
         <div class="max-w-3xl mx-auto">
             <div class="flex justify-between items-center mb-4">
-                <h1 class="text-xl font-black text-slate-800">PICKING HUB 2.0 📦</h1>
+                <h1 class="text-xl font-black text-slate-800">SEPARATION BE MAKE 3.0 📦</h1>
                 <div class="flex gap-2 items-center">
-                    <a href="https://gestor-de-pedidos-multi-loja-23b843e5.base44.app/Pedidos" target="_blank" class="text-[10px] bg-purple-600 text-white px-2 py-1 rounded font-bold uppercase hover:bg-purple-700 transition-all">
-                        Gestor de Pedidos
-                    </a>
-                    <button onclick="exportData()" class="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold uppercase hover:bg-green-700 transition-all" title="Exportar dados como JSON">
-                        Exportar JSON
-                    </button>
-                    <button onclick="importData()" class="text-[10px] bg-blue-600 text-white px-2 py-1 rounded font-bold uppercase hover:bg-blue-700 transition-all" title="Importar arquivo JSON de backup">
-                        Importar JSON
-                    </button>
-                    <button onclick="exportPDF()" class="text-[10px] bg-purple-600 text-white px-2 py-1 rounded font-bold uppercase hover:bg-purple-700 transition-all">
-                        PDF
-                    </button>
-                    <button onclick="showReport()" class="text-[10px] bg-gray-600 text-white px-2 py-1 rounded font-bold uppercase hover:bg-gray-700 transition-all">
-                        Relatório
+                    <button onclick="openActionsModal()" class="text-[10px] bg-indigo-600 text-white px-3 py-1 rounded-lg font-bold uppercase hover:bg-indigo-700 transition-all flex items-center gap-1">
+                        ⚙️ Ações
                     </button>
                 </div>
             </div>
