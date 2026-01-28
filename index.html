@@ -1,0 +1,784 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Picking Pro 2.0 - Multi-Loja Avançado</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        .status-concluido { border-left: 8px solid #22c55e !important; background-color: #f0fdf4; }
+        .status-parcial { border-left: 8px solid #facc15 !important; background-color: #fefce8; }
+        .status-atrasado { border-left: 8px solid #ef4444 !important; background-color: #fef2f2; }
+        .glass-header { background: rgba(255, 255, 255, 0.95); backdrop-filter: blur(10px); }
+        input::-webkit-outer-spin-button, input::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        .numpad-btn { 
+            transition: all 0.15s ease; 
+            user-select: none; 
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+        .numpad-btn:active { 
+            transform: scale(0.95); 
+            background-color: #dbeafe !important;
+        }
+        .fade-in { animation: fadeIn 0.3s ease-in; }
+        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        .pulse { animation: pulse 2s infinite; }
+        @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
+        .slide-down { animation: slideDown 0.3s ease-out; }
+        @keyframes slideDown { from { max-height: 0; opacity: 0; } to { max-height: 500px; opacity: 1; } }
+    </style>
+</head>
+<body class="bg-slate-100 min-h-screen pb-20 transition-colors duration-300">
+
+    <!-- Modal Principal -->
+    <div id="modal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl fade-in">
+            <div class="flex justify-between items-start mb-4">
+                <div>
+                    <h3 id="modalTitle" class="text-xl font-bold text-gray-800 mb-1">Separar Produto</h3>
+                    <p id="modalRef" class="text-blue-600 font-mono text-sm"></p>
+                </div>
+                <button onclick="closeModal()" class="text-gray-400 hover:text-gray-600">
+                    ×
+                </button>
+            </div>
+            
+            <div class="bg-slate-100 p-4 rounded-2xl mb-4 flex justify-between items-center">
+                <div>
+                    <p class="text-xs text-gray-500 uppercase">Necessário</p>
+                    <p id="targetQty" class="text-2xl font-black text-gray-800">0</p>
+                </div>
+                <div class="text-right">
+                    <p class="text-xs text-gray-500 uppercase">Já separado</p>
+                    <p id="currentQty" class="text-2xl font-black text-blue-600">0</p>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="block text-sm font-bold mb-2 text-gray-700">Quanto você coletou agora?</label>
+                <div class="relative">
+                    <input type="number" id="inputQty" readonly 
+                        class="w-full p-4 text-center text-3xl font-bold border-2 border-gray-200 rounded-2xl mb-2 focus:border-blue-500 outline-none bg-gray-50" 
+                        placeholder="0">
+                    <button onclick="clearInput()" class="absolute right-2 top-1/2 transform -translate-y-1/2 text-red-500 hover:text-red-700 p-2">
+                        ←
+                    </button>
+                </div>
+                <p id="errorMsg" class="text-red-500 text-xs font-bold mb-2 hidden">⚠️ Valor excede o total necessário!</p>
+                <p id="successMsg" class="text-green-500 text-xs font-bold mb-2 hidden">✅ Quantidade atualizada!</p>
+            </div>
+
+            <!-- Teclado Numérico -->
+            <div class="grid grid-cols-3 gap-2 mb-4">
+                <button onclick="appendNumber('1')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">1</button>
+                <button onclick="appendNumber('2')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">2</button>
+                <button onclick="appendNumber('3')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">3</button>
+                <button onclick="appendNumber('4')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">4</button>
+                <button onclick="appendNumber('5')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">5</button>
+                <button onclick="appendNumber('6')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">6</button>
+                <button onclick="appendNumber('7')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">7</button>
+                <button onclick="appendNumber('8')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">8</button>
+                <button onclick="appendNumber('9')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold">9</button>
+                <button onclick="appendNumber('0')" class="numpad-btn bg-gray-100 hover:bg-gray-200 p-4 rounded-xl text-xl font-bold col-span-2">0</button>
+                <button onclick="subtractQty()" class="numpad-btn bg-red-100 hover:bg-red-200 p-4 rounded-xl text-xl font-bold">
+                    −
+                </button>
+            </div>
+
+            <div class="flex gap-2">
+                <button onclick="closeModal()" class="flex-1 py-4 bg-slate-200 rounded-xl font-bold text-gray-600">Cancelar</button>
+                <button onclick="saveQty()" class="flex-1 py-4 bg-blue-600 text-white rounded-xl font-bold shadow-lg">Confirmar</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmação -->
+    <div id="confirmModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl fade-in">
+            <div class="text-center mb-6">
+                <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span class="text-red-600 text-2xl">⚠</span>
+                </div>
+                <h3 class="text-xl font-bold text-gray-800 mb-2">Confirmar Limpeza</h3>
+                <p class="text-gray-600">Isso apagará todo o progresso. Tem certeza?</p>
+            </div>
+            <div class="flex gap-3">
+                <button onclick="closeConfirmModal()" class="flex-1 py-3 bg-gray-200 rounded-xl font-bold text-gray-600">
+                    Cancelar
+                </button>
+                <button onclick="confirmReset()" class="flex-1 py-3 bg-red-600 text-white rounded-xl font-bold shadow-lg">
+                    Limpar Tudo
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Relatórios -->
+    <div id="reportModal" class="hidden fixed inset-0 z-[100] flex items-center justify-center bg-black/60 p-4">
+        <div class="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl fade-in max-h-[80vh] overflow-y-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800">📊 Relatório de Progresso</h3>
+                <button onclick="closeReportModal()" class="text-gray-400 hover:text-gray-600">
+                    ×
+                </button>
+            </div>
+            <div id="reportContent" class="space-y-4"></div>
+        </div>
+    </div>
+
+    <header class="sticky top-0 z-40 glass-header border-b p-4 shadow-sm">
+        <div class="max-w-3xl mx-auto">
+            <div class="flex justify-between items-center mb-4">
+                <h1 class="text-xl font-black text-slate-800">PICKING HUB 2.0 📦</h1>
+                <div class="flex gap-2 items-center">
+                    <a href="https://gestor-de-pedidos-multi-loja-23b843e5.base44.app/Pedidos" target="_blank" class="text-[10px] bg-purple-600 text-white px-2 py-1 rounded font-bold uppercase hover:bg-purple-700 transition-all">
+                        Gestor de Pedidos
+                    </a>
+                    <button onclick="showReport()" class="text-[10px] bg-green-600 text-white px-2 py-1 rounded font-bold uppercase">Relatório</button>
+                    <button onclick="exportData()" class="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold uppercase">Exportar</button>
+                    <button onclick="importData()" class="text-[10px] bg-slate-800 text-white px-2 py-1 rounded font-bold uppercase">Importar</button>
+                </div>
+            </div>
+
+            <input type="text" id="searchInput" placeholder="Buscar produto ou referência..." 
+                class="w-full p-3 rounded-xl border border-slate-300 focus:ring-2 focus:ring-blue-500 outline-none transition-all">
+            
+            <!-- Card de Filtros e Opções Colapsável -->
+            <div class="mt-3 bg-white rounded-xl p-3 shadow-sm border border-slate-200">
+                <div class="flex items-center justify-between cursor-pointer" onclick="toggleFiltersCard()">
+                    <div class="flex items-center gap-3">
+                        <span class="text-blue-500">⚙</span>
+                        <span class="font-bold text-sm text-gray-700">Filtros e Opções</span>
+                    </div>
+                    <span id="filtersCardIcon" class="text-gray-400 transition-transform">▼</span>
+                </div>
+                <div id="filtersCardContent" class="hidden mt-3 pt-3 border-t border-slate-200 space-y-3">
+                    <!-- Filtros -->
+                    <div class="flex gap-2">
+                        <select id="filterStatus" onchange="applyFilters()" class="text-xs p-2 border rounded flex-1">
+                            <option value="">Todos Status</option>
+                            <option value="pending">Pendentes</option>
+                            <option value="partial">Parciais</option>
+                            <option value="completed">Concluídos</option>
+                        </select>
+                        <select id="filterLoja" onchange="applyFilters()" class="text-xs p-2 border rounded flex-1">
+                            <option value="">Todas Lojas</option>
+                        </select>
+                        <select id="sortBy" onchange="applyFilters()" class="text-xs p-2 border rounded flex-1">
+                            <option value="order">Ordem Original</option>
+                            <option value="name">Nome</option>
+                            <option value="ref">Referência</option>
+                            <option value="qty">Quantidade</option>
+                        </select>
+                    </div>
+                    
+                    <!-- Estatísticas -->
+                    <div id="statsBar" class="hidden grid grid-cols-4 gap-2">
+                        <div class="bg-gray-50 p-2 rounded-lg border text-center">
+                            <p class="text-xs text-gray-500">Total</p>
+                            <p id="statTotal" class="font-bold text-sm">0</p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg border text-center">
+                            <p class="text-xs text-gray-500">Pendentes</p>
+                            <p id="statPending" class="font-bold text-sm text-red-600">0</p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg border text-center">
+                            <p class="text-xs text-gray-500">Parciais</p>
+                            <p id="statPartial" class="font-bold text-sm text-yellow-600">0</p>
+                        </div>
+                        <div class="bg-gray-50 p-2 rounded-lg border text-center">
+                            <p class="text-xs text-gray-500">Concluídos</p>
+                            <p id="statCompleted" class="font-bold text-sm text-green-600">0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-3xl mx-auto p-4">
+        
+        <!-- Card de Limpeza Colapsável -->
+        <div id="resetCard" class="bg-white rounded-2xl p-4 shadow-sm mb-6 border border-slate-200">
+            <div class="flex items-center justify-between cursor-pointer" onclick="toggleResetCard()">
+                <div class="flex items-center gap-3">
+                    <span class="text-red-500">🗑</span>
+                    <span class="font-bold text-sm text-gray-700">Opções de Limpeza</span>
+                </div>
+                <span id="resetCardIcon" class="text-gray-400 transition-transform">▼</span>
+            </div>
+            <div id="resetCardContent" class="hidden mt-4 pt-4 border-t border-slate-200">
+                <p class="text-sm text-gray-600 mb-3">⚠️ Esta ação apagará todo o progresso atual e não poderá ser desfeita.</p>
+                <button onclick="showConfirmModal()" class="w-full py-3 text-red-500 font-bold text-sm border-2 border-dashed border-red-200 rounded-xl hover:bg-red-50 transition-all">
+                    LIMPAR TUDO E NOVA GUIA
+                </button>
+            </div>
+        </div>
+        
+        <div id="inputSection" class="bg-white rounded-2xl p-6 shadow-sm mb-6 border border-slate-200">
+            <h2 class="text-sm font-bold text-gray-400 uppercase tracking-widest mb-4">Importar Guias</h2>
+            <textarea id="rawInput" rows="4" class="w-full p-4 bg-slate-50 border rounded-xl text-sm mb-3" placeholder="Cole as guias aqui..."></textarea>
+            <div id="validationErrors" class="hidden mb-3 p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700"></div>
+            <button onclick="iniciarNovaSeparacao()" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition-all">
+                INICIAR SEPARAÇÃO
+            </button>
+        </div>
+
+        <div id="lojasContainer" class="space-y-4"></div>
+    </main>
+
+
+    <script>
+        let db = { lojas: [], metadata: { created: new Date().toISOString(), lastModified: new Date().toISOString() } };
+        let activeLojaIdx = null;
+        let activeItemIdx = null;
+
+        // Carregar dados ao abrir
+        window.onload = () => {
+            loadFromStorage();
+            setupKeyboardShortcuts();
+            setupAutoBackup();
+            render();
+        };
+
+        function loadFromStorage() {
+            const saved = localStorage.getItem('picking_data_v2');
+            if (saved) {
+                try {
+                    db = JSON.parse(saved);
+                    render();
+                    document.getElementById('inputSection').classList.add('hidden');
+                    updateStats();
+                    updateFilterOptions();
+                } catch (e) {
+                    console.error('Erro ao carregar dados:', e);
+                    showNotification('Erro ao carregar dados salvos', 'error');
+                }
+            }
+        }
+
+        function saveToStorage() {
+            db.metadata.lastModified = new Date().toISOString();
+            localStorage.setItem('picking_data_v2', JSON.stringify(db));
+        }
+
+        function iniciarNovaSeparacao() {
+            const text = document.getElementById('rawInput').value;
+            if(!text) {
+                showNotification('Cole os dados da guia primeiro', 'error');
+                return;
+            }
+
+            const validation = validateInput(text);
+            if (!validation.valid) {
+                showValidationErrors(validation.errors);
+                return;
+            }
+
+            const guias = text.split(/GUIA DE SEPARAÇÃO/i).filter(g => g.trim().length > 10);
+            db.lojas = guias.map(guiaText => {
+                const nomeLoja = guiaText.match(/(.*?)(?=CNPJ:)/)?.[1]?.trim() || "Loja";
+                const cnpj = guiaText.match(/CNPJ:\s*([\d./-]+)/)?.[1] || "";
+                const itens = [];
+                const itemRegex = /(.*?)\s+(\d+)\s*(\d+)/g;
+                let match;
+                
+                while ((match = itemRegex.exec(guiaText)) !== null) {
+                    itens.push({
+                        id: generateId(),
+                        nome: match[1].replace(/ProdutoReferênciaBoxes✓/i, '').trim(),
+                        ref: match[2],
+                        total: parseInt(match[3]),
+                        coletado: 0,
+                        open: true,
+                        lastModified: new Date().toISOString()
+                    });
+                }
+                return { 
+                    id: generateId(), 
+                    nome: nomeLoja, 
+                    cnpj, 
+                    itens, 
+                    open: true,
+                    stats: { total: itens.length, completed: 0, partial: 0, pending: itens.length }
+                };
+            });
+
+            saveAndRender();
+            document.getElementById('inputSection').classList.add('hidden');
+            updateStats();
+            updateFilterOptions();
+            showNotification('Separação iniciada com sucesso!', 'success');
+        }
+
+        function validateInput(text) {
+            const errors = [];
+            
+            if (!text.includes('GUIA DE SEPARAÇÃO')) {
+                errors.push('Texto não contém "GUIA DE SEPARAÇÃO"');
+            }
+            
+            const guias = text.split(/GUIA DE SEPARAÇÃO/i).filter(g => g.trim().length > 10);
+            if (guias.length === 0) {
+                errors.push('Nenhuma guia válida encontrada');
+            }
+            
+            guias.forEach((guia, idx) => {
+                const itemMatches = guia.match(/(\d+)\s*(\d+)/g);
+                if (!itemMatches || itemMatches.length === 0) {
+                    errors.push(`Guia ${idx + 1}: Nenhum item válido encontrado`);
+                }
+            });
+            
+            return { valid: errors.length === 0, errors };
+        }
+
+        function showValidationErrors(errors) {
+            const errorDiv = document.getElementById('validationErrors');
+            errorDiv.innerHTML = '<strong>Erros de validação:</strong><ul class="list-disc ml-4 mt-2">' + 
+                errors.map(e => `<li>${e}</li>`).join('') + '</ul>';
+            errorDiv.classList.remove('hidden');
+            setTimeout(() => errorDiv.classList.add('hidden'), 5000);
+        }
+
+        function render() {
+            const container = document.getElementById('lojasContainer');
+            container.innerHTML = '';
+
+            let filteredLojas = getFilteredLojas();
+
+            filteredLojas.forEach((loja, lIdx) => {
+                const originalIdx = db.lojas.indexOf(loja);
+                let itensHtml = '';
+                
+                loja.itens.forEach((item, iIdx) => {
+                    if (!shouldShowItem(item)) return;
+                    
+                    const statusClass = getStatusClass(item);
+                    const statusBadge = getStatusBadge(item);
+                    
+                    itensHtml += `
+                        <div class="product-card ${statusClass} bg-white p-4 rounded-xl border border-slate-200 shadow-sm flex items-center gap-3 transition-all hover:shadow-md" onclick="openModal(${originalIdx}, ${iIdx})">
+                            <div class="text-[10px] font-bold text-slate-400 w-4">${iIdx + 1}</div>
+                            <div class="flex-1">
+                                <div class="text-[10px] font-black text-blue-600">${item.ref}</div>
+                                <div class="text-sm font-bold text-slate-800">${item.nome}</div>
+                                ${statusBadge}
+                            </div>
+                            <div class="text-right">
+                                <div class="text-xs text-slate-400">Qtd</div>
+                                <div class="font-black">${item.coletado}/${item.total}</div>
+                                <div class="text-xs text-gray-500">${Math.round((item.coletado/item.total)*100)}%</div>
+                            </div>
+                        </div>
+                    `;
+                });
+
+                if (itensHtml) {
+                    container.innerHTML += `
+                        <div class="loja-group fade-in">
+                            <div class="flex items-center justify-between bg-slate-800 text-white p-4 rounded-xl mb-2 cursor-pointer hover:bg-slate-700 transition-colors" onclick="toggleLoja(${originalIdx})">
+                                <div>
+                                    <h2 class="font-bold text-sm">${loja.nome}</h2>
+                                    <p class="text-[10px] opacity-70">${loja.cnpj}</p>
+                                </div>
+                                <div class="flex items-center gap-2">
+                                    <span class="text-xs bg-green-600 px-2 py-1 rounded">${loja.stats?.completed || 0}/${loja.stats?.total || 0}</span>
+                                    <span class="text-xs">${loja.open ? '▼' : '▲'}</span>
+                                </div>
+                            </div>
+                            <div class="${loja.open ? 'grid' : 'hidden'} gap-2 mb-6 slide-down">
+                                ${itensHtml}
+                            </div>
+                        </div>
+                    `;
+                }
+            });
+
+            if (container.innerHTML === '') {
+                container.innerHTML = '<div class="text-center py-10 text-gray-500">Nenhum item encontrado com os filtros atuais</div>';
+            }
+        }
+
+        function getFilteredLojas() {
+            let lojas = [...db.lojas];
+            const statusFilter = document.getElementById('filterStatus').value;
+            const lojaFilter = document.getElementById('filterLoja').value;
+            
+            if (lojaFilter) {
+                lojas = lojas.filter(l => l.id === lojaFilter);
+            }
+            
+            return lojas;
+        }
+
+        function shouldShowItem(item) {
+            const statusFilter = document.getElementById('filterStatus').value;
+            const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+            
+            if (searchTerm && !item.nome.toLowerCase().includes(searchTerm) && !item.ref.toLowerCase().includes(searchTerm)) {
+                return false;
+            }
+            
+            if (statusFilter) {
+                if (statusFilter === 'pending' && item.coletado > 0) return false;
+                if (statusFilter === 'partial' && (item.coletado === 0 || item.coletado >= item.total)) return false;
+                if (statusFilter === 'completed' && item.coletado < item.total) return false;
+            }
+            
+            return true;
+        }
+
+        function getStatusClass(item) {
+            if (item.coletado === 0) return '';
+            if (item.coletado >= item.total) return 'status-concluido';
+            return 'status-parcial';
+        }
+
+        function getStatusBadge(item) {
+            if (item.coletado > 0 && item.coletado < item.total) {
+                return '<span class="text-[10px] bg-yellow-400 px-1 rounded font-bold">PENDENTE</span>';
+            }
+            if (item.coletado >= item.total) {
+                return '<span class="text-[10px] bg-green-500 text-white px-1 rounded font-bold">CONCLUÍDO</span>';
+            }
+            return '';
+        }
+
+        function toggleLoja(idx) {
+            db.lojas[idx].open = !db.lojas[idx].open;
+            saveAndRender();
+        }
+
+        function openModal(lIdx, iIdx) {
+            activeLojaIdx = lIdx;
+            activeItemIdx = iIdx;
+            const item = db.lojas[lIdx].itens[iIdx];
+            
+            document.getElementById('modalTitle').innerText = item.nome;
+            document.getElementById('modalRef').innerText = item.ref;
+            document.getElementById('targetQty').innerText = item.total;
+            document.getElementById('currentQty').innerText = item.coletado;
+            document.getElementById('inputQty').value = '';
+            document.getElementById('errorMsg').classList.add('hidden');
+            document.getElementById('successMsg').classList.add('hidden');
+            document.getElementById('modal').classList.remove('hidden');
+            
+            setTimeout(() => {
+                document.getElementById('inputQty').focus();
+            }, 100);
+        }
+
+        function appendNumber(num) {
+            const input = document.getElementById('inputQty');
+            const current = input.value || '0';
+            
+            if (current === '0') {
+                input.value = num;
+            } else {
+                input.value = current + num;
+            }
+            
+            checkQuantity();
+        }
+
+        function clearInput() {
+            document.getElementById('inputQty').value = '';
+            document.getElementById('errorMsg').classList.add('hidden');
+        }
+
+        function subtractQty() {
+            const input = document.getElementById('inputQty');
+            const current = parseInt(input.value) || 0;
+            if (current > 0) {
+                input.value = current - 1;
+            }
+            checkQuantity();
+        }
+
+        function checkQuantity() {
+            const val = parseInt(document.getElementById('inputQty').value) || 0;
+            const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
+            const errorMsg = document.getElementById('errorMsg');
+            
+            if (item.coletado + val > item.total) {
+                errorMsg.classList.remove('hidden');
+                return false;
+            } else {
+                errorMsg.classList.add('hidden');
+                return true;
+            }
+        }
+
+        function saveQty() {
+            const val = parseInt(document.getElementById('inputQty').value) || 0;
+            const item = db.lojas[activeLojaIdx].itens[activeItemIdx];
+            
+            if (!checkQuantity()) return;
+            
+            item.coletado += val;
+            item.lastModified = new Date().toISOString();
+            
+            updateLojaStats(activeLojaIdx);
+            closeModal();
+            saveAndRender();
+            updateStats();
+            
+            showNotification(`Adicionado ${val} unidades ao item ${item.ref}`, 'success');
+        }
+
+        function updateLojaStats(lojaIdx) {
+            const loja = db.lojas[lojaIdx];
+            loja.stats = {
+                total: loja.itens.length,
+                completed: loja.itens.filter(i => i.coletado >= i.total).length,
+                partial: loja.itens.filter(i => i.coletado > 0 && i.coletado < i.total).length,
+                pending: loja.itens.filter(i => i.coletado === 0).length
+            };
+        }
+
+        function saveAndRender() {
+            saveToStorage();
+            render();
+        }
+
+        function closeModal() { 
+            document.getElementById('modal').classList.add('hidden'); 
+        }
+
+        function toggleFiltersCard() {
+            const content = document.getElementById('filtersCardContent');
+            const icon = document.getElementById('filtersCardIcon');
+            
+            content.classList.toggle('hidden');
+            icon.textContent = icon.textContent === '▼' ? '▲' : '▼';
+        }
+
+        function toggleResetCard() {
+            const content = document.getElementById('resetCardContent');
+            const icon = document.getElementById('resetCardIcon');
+            
+            content.classList.toggle('hidden');
+            icon.textContent = icon.textContent === '▼' ? '▲' : '▼';
+        }
+
+        function showConfirmModal() {
+            document.getElementById('confirmModal').classList.remove('hidden');
+        }
+
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.add('hidden');
+        }
+
+        function confirmReset() {
+            localStorage.removeItem('picking_data_v2');
+            location.reload();
+        }
+
+        function resetTudo() {
+            showConfirmModal();
+        }
+
+        function exportData() {
+            const blob = new Blob([JSON.stringify(db, null, 2)], {type: 'application/json'});
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `separacao_${new Date().toLocaleDateString('pt-BR')}.json`;
+            a.click();
+            showNotification('Dados exportados com sucesso!', 'success');
+        }
+
+        function importData() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = e => {
+                const file = e.target.files[0];
+                const reader = new FileReader();
+                reader.onload = event => {
+                    try {
+                        const imported = JSON.parse(event.target.result);
+                        if (imported.lojas && Array.isArray(imported.lojas)) {
+                            db = imported;
+                            saveAndRender();
+                            updateStats();
+                            updateFilterOptions();
+                            showNotification('Dados importados com sucesso!', 'success');
+                        } else {
+                            throw new Error('Formato inválido');
+                        }
+                    } catch (error) {
+                        showNotification('Erro ao importar arquivo: ' + error.message, 'error');
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        function showReport() {
+            const modal = document.getElementById('reportModal');
+            const content = document.getElementById('reportContent');
+            
+            let totalItens = 0, totalSeparado = 0, totalPendente = 0;
+            let lojasHtml = '';
+            
+            db.lojas.forEach(loja => {
+                let lojaTotal = 0, lojaSeparado = 0;
+                loja.itens.forEach(item => {
+                    totalItens++;
+                    lojaTotal++;
+                    totalSeparado += item.coletado;
+                    lojaSeparado += item.coletado;
+                    if (item.coletado < item.total) {
+                        totalPendente += (item.total - item.coletado);
+                    }
+                });
+                
+                const percent = lojaTotal > 0 ? Math.round((lojaSeparado / lojaTotal) * 100) : 0;
+                lojasHtml += `
+                    <div class="border rounded-lg p-3">
+                        <h4 class="font-bold">${loja.nome}</h4>
+                        <p class="text-sm text-gray-600">Progresso: ${percent}% (${lojaSeparado}/${lojaTotal})</p>
+                        <div class="w-full bg-gray-200 rounded-full h-2 mt-2">
+                            <div class="bg-blue-600 h-2 rounded-full" style="width: ${percent}%"></div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            const geralPercent = totalItens > 0 ? Math.round((totalSeparado / totalItens) * 100) : 0;
+            
+            content.innerHTML = `
+                <div class="bg-blue-50 p-4 rounded-xl mb-4">
+                    <h4 class="font-bold text-lg mb-2">Resumo Geral</h4>
+                    <div class="grid grid-cols-2 gap-4">
+                        <div>
+                            <p class="text-sm text-gray-600">Progresso Total</p>
+                            <p class="text-2xl font-bold">${geralPercent}%</p>
+                        </div>
+                        <div>
+                            <p class="text-sm text-gray-600">Itens Pendentes</p>
+                            <p class="text-2xl font-bold text-red-600">${totalPendente}</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div>
+                    <h4 class="font-bold mb-2">Progresso por Loja</h4>
+                    <div class="space-y-2">
+                        ${lojasHtml}
+                    </div>
+                </div>
+                
+                <div class="mt-4 text-xs text-gray-500">
+                    <p>Criado: ${new Date(db.metadata.created).toLocaleString('pt-BR')}</p>
+                    <p>Última modificação: ${new Date(db.metadata.lastModified).toLocaleString('pt-BR')}</p>
+                </div>
+            `;
+            
+            modal.classList.remove('hidden');
+        }
+
+        function closeReportModal() {
+            document.getElementById('reportModal').classList.add('hidden');
+        }
+
+        function updateStats() {
+            if (db.lojas.length === 0) return;
+            
+            let total = 0, pending = 0, partial = 0, completed = 0;
+            
+            db.lojas.forEach(loja => {
+                loja.itens.forEach(item => {
+                    total++;
+                    if (item.coletado === 0) pending++;
+                    else if (item.coletado >= item.total) completed++;
+                    else partial++;
+                });
+            });
+            
+            document.getElementById('statTotal').textContent = total;
+            document.getElementById('statPending').textContent = pending;
+            document.getElementById('statPartial').textContent = partial;
+            document.getElementById('statCompleted').textContent = completed;
+            document.getElementById('statsBar').classList.remove('hidden');
+        }
+
+        function updateFilterOptions() {
+            const select = document.getElementById('filterLoja');
+            select.innerHTML = '<option value="">Todas Lojas</option>';
+            
+            db.lojas.forEach(loja => {
+                select.innerHTML += `<option value="${loja.id}">${loja.nome}</option>`;
+            });
+        }
+
+        function applyFilters() {
+            render();
+        }
+
+        function showNotification(message, type = 'info') {
+            const colors = {
+                success: 'bg-green-500',
+                error: 'bg-red-500',
+                info: 'bg-blue-500'
+            };
+            
+            const notification = document.createElement('div');
+            notification.className = `fixed top-20 right-4 ${colors[type]} text-white px-4 py-2 rounded-lg shadow-lg z-50 fade-in`;
+            notification.textContent = message;
+            document.body.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.remove();
+            }, 3000);
+        }
+
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substr(2);
+        }
+
+        function setupKeyboardShortcuts() {
+            document.addEventListener('keydown', (e) => {
+                if (e.ctrlKey && e.key === 'r') {
+                    e.preventDefault();
+                    showReport();
+                } else if (e.ctrlKey && e.key === 'e') {
+                    e.preventDefault();
+                    exportData();
+                } else if (e.ctrlKey && e.key === 'i') {
+                    e.preventDefault();
+                    importData();
+                } else if (e.key === 'Escape') {
+                    closeModal();
+                    closeReportModal();
+                }
+            });
+        }
+
+        function setupAutoBackup() {
+            setInterval(() => {
+                if (db.lojas.length > 0) {
+                    const backup = {
+                        timestamp: new Date().toISOString(),
+                        data: db
+                    };
+                    localStorage.setItem('picking_backup', JSON.stringify(backup));
+                }
+            }, 60000); // Backup a cada minuto
+        }
+
+        // Busca com debounce
+        let searchTimeout;
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            clearTimeout(searchTimeout);
+            searchTimeout = setTimeout(() => {
+                render();
+            }, 300);
+        });
+    </script>
+</body>
+</html>
